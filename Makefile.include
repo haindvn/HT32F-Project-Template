@@ -1,0 +1,223 @@
+######################################
+# target
+######################################
+
+ARM_CORE = cortex-m0plus
+######################################
+# building variables
+######################################
+# debug build?
+DEBUG ?= 1
+VERBOSE ?= N
+# optimization
+OPT ?= -Og
+#######################################
+# paths
+#######################################
+# Build path
+BUILD_DIR ?= build
+
+
+#######################################
+# VERBOSE
+
+ifeq ($(VERBOSE), Y)
+	VB = 
+else
+	VB = @
+endif
+
+
+
+INCLUDE_DIR = ../HT32F5xxx_Drivers
+
+######################################
+# Module to include
+######################################
+
+include modules_inc
+MODULE_PREFIX = ht32f5xxxx_
+MODULE_PATH = library/HT32F5xxxx_Driver/src/
+MODULES_NAME = $(addsuffix .c,$(addprefix $(MODULE_PREFIX),$(MODULES)))
+MODULES_SRC = $(addprefix $(INCLUDE_DIR)/$(MODULE_PATH), $(MODULES_NAME))
+
+######################################
+# source
+######################################
+# C sources
+
+C_SOURCES += $(wildcard Src/*.c)
+
+STARTUP_FILE = $(INCLUDE_DIR)/startup_ht32f5xxxx_gcc_03.s
+LINKER_FILE = $(INCLUDE_DIR)/linker.ld
+
+HT32_USB_PATH = $(INCLUDE_DIR)/library/HT32_USBD_Library/src/
+HT32_LIB_PATH = $(INCLUDE_DIR)/library/HT32F5xxxx_Driver/src/
+HT32_UTL_PATH = $(INCLUDE_DIR)/utilities/
+
+C_SOURCES += $(HT32_USB_PATH)ht32_usbd_core.c
+C_SOURCES += $(HT32_LIB_PATH)ht32_cm0plus_misc.c
+C_SOURCES += $(HT32_LIB_PATH)ht32_retarget.c
+C_SOURCES += $(HT32_LIB_PATH)ht32_serial.c
+C_SOURCES += $(HT32_LIB_PATH)printf.c
+C_SOURCES += $(HT32_LIB_PATH)syscalls.c
+C_SOURCES += $(HT32_UTL_PATH)ht32_board.c
+C_SOURCES += $(HT32_UTL_PATH)common/ebi_lcd.c
+C_SOURCES += $(HT32_UTL_PATH)common/i2c_eeprom.c
+C_SOURCES += $(HT32_UTL_PATH)common/spi_flash.c
+C_SOURCES += $(MODULES_SRC)
+
+INC_DIRS += Inc
+INC_DIRS += $(INCLUDE_DIR)/library/CMSIS/Include
+INC_DIRS += $(INCLUDE_DIR)/library/Device/Holtek/HT32F5xxxx/Include
+INC_DIRS += $(INCLUDE_DIR)/library/HT32F5xxxx_Driver/inc
+INC_DIRS += $(INCLUDE_DIR)/library/HT32_USBD_Library/inc
+INC_DIRS += $(INCLUDE_DIR)/utilities
+
+# ASM sources
+ASM_SOURCES += $(STARTUP_FILE)
+
+
+
+#######################################
+# binaries
+#######################################
+PREFIX = arm-none-eabi-
+# The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
+# either it can be added to the PATH environment variable.
+ifdef GCC_PATH
+CC = $(GCC_PATH)/$(PREFIX)gcc
+AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
+CP = $(GCC_PATH)/$(PREFIX)objcopy
+SZ = $(GCC_PATH)/$(PREFIX)size
+else
+CC = $(PREFIX)gcc
+AS = $(PREFIX)gcc -x assembler-with-cpp
+CP = $(PREFIX)objcopy
+SZ = $(PREFIX)size
+endif
+HEX = $(CP) -O ihex
+BIN = $(CP) -O binary -S
+ 
+#######################################
+# CFLAGS
+#######################################
+# cpu
+CPU = -mcpu=cortex-m0plus
+
+# fpu
+# NONE for Cortex-M0/M0+/M3
+
+# float-abi
+
+
+# mcu
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI) -mthumb-interwork
+
+# macros for gcc
+# AS defines
+AS_DEFS += 
+
+# C defines
+C_DEFS +=  \
+-DUSE_HT32_DRIVER \
+-DUSE_HT32F52367_SK \
+-DUSE_HT32F52357_67 \
+-DUSE_MEM_HT32F52367
+
+S_OPTION = --defsym USE_HT32_CHIP=11
+ARCH_OPTION = -mcpu=$(ARM_CORE) -mthumb -mthumb-interwork
+S_OBJECT_OPTION = $(ARCH_OPTION) $(S_OPTION)
+
+# AS includes
+AS_INCLUDES =
+
+# C includes
+C_INCLUDES += $(addprefix -I,$(INC_DIRS)) 
+
+
+# compile gcc flags
+ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+
+CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections -gdwarf-2 -MD -Os -mapcs-frame
+
+ifeq ($(DEBUG), 1)
+CFLAGS += -g -gdwarf-2
+endif
+
+
+# Generate dependency information
+CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+
+
+#######################################
+# LDFLAGS
+#######################################
+# link script
+LDSCRIPT = $(LINKER_FILE)
+START_NAME_PATH = $(STARTUP_FILE)
+
+# libraries
+LIBS = -lc -lm -lnosys 
+LIBDIR = 
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -Wl,--print-memory-usage
+
+# default action: build all
+all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+
+
+#######################################
+# build the application
+#######################################
+# list of objects
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
+vpath %.c $(sort $(dir $(C_SOURCES)))
+# list of ASM program objects
+OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
+vpath %.s $(sort $(dir $(ASM_SOURCES)))
+
+$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
+	@echo " CC      $<"
+	$(VB)$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+	@echo " AS      $<"
+	$(VB)$(AS) -c $(CFLAGS) $< -o $@
+
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
+#	$(AS) $(S_OBJECT_OPTION) $(START_NAME_PATH) -o $(STARTUP).o
+	@echo " CCLD    $@	"
+	$(VB)$(CC) $(OBJECTS) $(LDFLAGS) -o $@
+	$(VB)$(SZ) $@
+
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+	@echo " HEX      $@"
+	$(VB)$(HEX) $< $@
+	
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+	@echo " BIN     $<"
+	$(VB)$(BIN) $< $@	
+	
+$(BUILD_DIR):
+	@echo " CREATE  $(BUILD_DIR)"
+	$(VB)mkdir $@		
+
+#######################################
+# program mcu use elink32 commandline
+#######################################
+#######################################
+# clean up
+#######################################
+clean:
+	@echo " CLEAN  $(BUILD_DIR)"
+	$(VB)-rm -fR $(BUILD_DIR)
+	
+info:
+	@echo $(OBJECTS)
+  
+#######################################
+# dependencies
+#######################################
+-include $(wildcard $(BUILD_DIR)/*.d)
+
+# *** EOF ***

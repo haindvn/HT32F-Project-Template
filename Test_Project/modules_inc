@@ -1,0 +1,27 @@
+#Comment out the module you need
+
+#MODULES += adc
+#MODULES += aes
+#MODULES += bftm
+MODULES += ckcu
+#MODULES += cmp
+#MODULES += crc
+#MODULES += dac
+#MODULES += div
+#MODULES += ebi
+#MODULES += exti
+#MODULES += flash
+MODULES += gpio
+#MODULES += i2c
+#MODULES += i2s
+#MODULES += mctm
+#MODULES += pdma
+#MODULES += pwrcu
+#MODULES += rstcu
+#MODULES += rtc
+#MODULES += sci
+#MODULES += spi
+#MODULES += tm
+MODULES += usart
+#MODULES += usbd
+#MODULES += wdt
