@@ -1,6 +1,6 @@
 # HT32F-Project-Template
 
-Quick template can be used for HT32F projects / GNU ARM GCC with 
+Quick template can be used for HT32F projects / GNU ARM GCC with beautified outputs
 - Src: put your source code files here, all files in this folder will be compiled
 - Inc: put your own include header files here
 - Makefile: there's nothing to modify, we have common settings in Makefile.include file already, each project only need few lines in Makefile (even the project name will be automatically set to the sames as your project directory name.
