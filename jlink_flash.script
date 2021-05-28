@@ -1,0 +1,5 @@
+r
+loadfile build/target.hex
+r
+g
+exit

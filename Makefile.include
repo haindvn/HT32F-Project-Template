@@ -165,6 +165,10 @@ LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BU
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
+flash: all
+	@echo " JLINK    $@"
+	$(VB)cp $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/target.hex
+	$(VB)jlink -autoconnect 1 -nogui 1 -device $(JLINK_DEVICE) -If SWD -speed 2000 -commanderscript ../jlink_flash.script
 
 #######################################
 # build the application
